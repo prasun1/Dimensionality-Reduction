@@ -1,0 +1,126 @@
+#Dataset used for this activity:
+The MNIST dataset is composed of 28x28 pixel images of handwriten digits from zero through nine.
+
+Each image is 28 pixels in height and 28 pixels in width, for a total of 784 pixels in total.
+Each pixel has a single pixel-value associated with it, indicating the lightness or darkness 
+of that pixel, with higher numbers meaning darker. This pixel-value is an integer between 0 and 255, inclusive.
+
+The training data set, (train.csv), has 785 columns. The first column, called "label", 
+is the digit that was drawn by the user. The rest of the columns contain the pixel-values of the associated image.
+
+        import pandas as pd
+        import numpy as np
+        import time
+
+        from sklearn.model_selection import train_test_split
+
+        train = pd.read_csv('data/mnist_train.csv')
+
+        # Separate labels from the data
+        y = train['label']
+        # Drop the label feature
+        X = train.drop("label",axis=1)
+
+        # Split the train data into X_train and y_train datasets in 80:20 ratio.
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42)
+
+        print "Train data shape : " + str(X_train.shape)
+        print "Test data shape : " + str(X_test.shape)
+        X_train.head()
+
+#Applying KNN classifier on MNIST dataset without applying Dimensionality Reduction
+Let’s take a look at how long it takes to train a KNN Classifier on the MNIST dataset:
+
+
+        from sklearn.neighbors import KNeighborsClassifier
+
+        start = time.time()
+        clf = KNeighborsClassifier(n_neighbors=3, algorithm='ball_tree')
+        clf.fit(X_train, y_train)
+        y = clf.predict(X_test)
+
+        # Calculate error in prediction
+        errors = (y_test != y).sum()
+        total = X_test.shape[0]
+        error_rate_without_dr = (errors/float(total)) * 100
+        print "Error rate without dimensionality reduction: %d/%d * 100 = %f" % (errors, total, error_rate_without_dr)
+
+        end = time.time()
+        duration_without_dr = end-start
+        print "Time taken to train a KNN Classifier without DR: %d seconds" %duration_without_dr
+        
+        
+#Applying PCA transform
+The output of a PCA process is a system of linear combinations of the data that we will use to
+transform our original dataset to the reduced dimensional dataset
+
+
+        from sklearn.decomposition import PCA
+        start = time.time()
+        pca = PCA(n_components=150)
+        pca.fit(X_train)
+
+        X_train_pca = pca.transform(X_train)
+        X_test_pca = pca.transform(X_test)
+        print "PCA transformation time: %d seconds" % (time.time()-start)
+        
+        
+#Applying SVD transform
+Singular Value Decomposition (SVD) is a matrix factorization technique that factors 
+a matrix M into the three matrices U, Σ, and V. This is very similar to PCA, except 
+that the factorization for SVD is done on the data matrix, whereas for PCA, the factorization
+is done on the covariance matrix. Typically, SVD is used under the hood to find the principle components of a matrix.
+
+
+        from sklearn.decomposition import TruncatedSVD
+
+        start = time.time()
+        svd = TruncatedSVD(n_components=150)
+        svd.fit(X_train)
+
+        X_train_svd = svd.transform(X_train)
+        X_test_svd = svd.transform(X_test)
+        print "SVD transformation time: %d seconds" % (time.time()-start)
+
+        start = time.time()
+        clf.fit(X_train_svd, y_train)
+        y = clf.predict(X_test_svd)
+
+        errors = (y_test != y).sum()
+        total = X_test_svd.shape[0]
+        error_rate_with_svd = (errors/float(total)) * 100
+        print "Error rate with SVD: %d/%d * 100 = %f" % (errors, total, error_rate_with_svd)
+
+        end = time.time()
+        duration_with_svd = end-start
+        print "Time taken to train a KNN Classifier with SVD: %d seconds" %duration_with_svd
+        
+        
+Applying Random Projections
+The sklearn.random_projection module implements a simple and computationally efficient way to 
+reduce the dimensionality of the data by trading a controlled amount of accuracy (as additional variance)
+for faster processing times and smaller model sizes.
+
+        from sklearn import random_projection
+
+        start = time.time()
+        rp = random_projection.SparseRandomProjection(n_components=150, random_state=19)
+        rp.fit(X_train)
+
+        X_train_rp = rp.transform(X_train)
+        X_test_rp = rp.transform(X_test)
+        print "RP transformation time: %d seconds" % (time.time()-start)
+
+        start = time.time()
+        clf.fit(X_train_rp, y_train)
+        y = clf.predict(X_test_rp)
+
+        errors = (y_test != y).sum()
+        total = X_test_rp.shape[0]
+        error_rate_with_rp = (errors/float(total)) * 100
+        print "Error rate with Random Projection: %d/%d * 100 = %f" % (errors, total, error_rate_with_rp)
+        
+        end = time.time()
+        duration_with_rp = end-start
+        print "Time taken to train a KNN Classifier with Random Projection: %d seconds" %duration_with_rp
